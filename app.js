@@ -226,9 +226,11 @@ async function fetchPlayerStats(mlbId) {
       ? (g.opponent.abbreviation || teamAbbrev(g.opponent.name))
       : (g.team ? (g.team.abbreviation || teamAbbrev(g.team.name)) : '???');
     const pos = g.positionsPlayed ? g.positionsPlayed.map(p => p.abbreviation) : [];
+    const isWin = g.isWin !== undefined ? g.isWin : null;
     return {
       date: g.date,
       opp: opp,
+      isWin: isWin,
       AB: s.atBats || 0,
       H: s.hits || 0,
       '2B': s.doubles || 0,
@@ -310,6 +312,22 @@ function loadPlayer() {
   document.getElementById('playerBats').textContent = `Bats: ${player.bats}`;
   document.getElementById('playerThrows').textContent = `Throws: ${player.throws}`;
   document.getElementById('playerAge').textContent = `Age: ${player.age}`;
+
+  // Load MLB headshot
+  const headshot = document.getElementById('playerHeadshot');
+  const fallback = document.getElementById('avatarFallback');
+  if (player.mlbId) {
+    const url = `https://midfield.mlbstatic.com/v1/people/${player.mlbId}/spots/120`;
+    headshot.src = url;
+    headshot.onload = () => { headshot.style.display = 'block'; fallback.style.display = 'none'; };
+    headshot.onerror = () => { headshot.style.display = 'none'; fallback.style.display = 'block'; };
+  } else {
+    headshot.style.display = 'none';
+    fallback.style.display = 'block';
+  }
+
+  // Update news/social links
+  renderNewsLinks();
 }
 
 // ---- Compute Season Stats ----
@@ -377,6 +395,7 @@ function renderAll() {
   renderZones();
   renderInnings(stats);
   renderMilestones(stats);
+  renderStreaks();
   renderWeekly();
 }
 
@@ -547,7 +566,7 @@ function renderGameLog() {
   const sorted = [...games].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   if (sorted.length === 0) {
-    body.innerHTML = `<tr><td colspan="12" style="color:var(--text-dim);padding:30px;font-family:var(--font-display);font-size:0.75rem;letter-spacing:2px;">NO GAMES LOGGED YET &mdash; CLICK "LOG GAME" TO START</td></tr>`;
+    body.innerHTML = `<tr><td colspan="13" style="color:var(--text-dim);padding:30px;font-family:var(--font-display);font-size:0.75rem;letter-spacing:2px;">NO GAMES LOGGED YET &mdash; CLICK "LOG GAME" TO START</td></tr>`;
     return;
   }
 
@@ -567,9 +586,13 @@ function renderGameLog() {
     const gameAvg = (g.AB > 0 ? (g.H / g.AB) : 0);
     const cls = gameAvg >= 0.400 ? 'hot-game' : (gameAvg === 0 && g.AB > 0 ? 'cold-game' : '');
 
+    const wlBadge = g.isWin === true ? '<span class="wl-badge wl-win">W</span>'
+      : g.isWin === false ? '<span class="wl-badge wl-loss">L</span>' : '-';
+
     return `<tr class="${cls}">
       <td>${dateStr}</td>
       <td>${g.opp}</td>
+      <td>${wlBadge}</td>
       <td>${g.AB}</td>
       <td>${g.H}</td>
       <td>${g['2B']}</td>
@@ -1004,8 +1027,123 @@ function navigateFact(dir) {
   dots[currentFact].classList.add('active');
 }
 
+// ---- Streak Tracker ----
+function renderStreaks() {
+  const grid = document.getElementById('streaksGrid');
+  if (!grid) return;
+
+  const sorted = [...games].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // Current hitting streak
+  let currentHitStreak = 0;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (sorted[i].H > 0) currentHitStreak++;
+    else if (sorted[i].AB > 0) break;
+  }
+
+  // Longest hitting streak
+  let longestHitStreak = 0, tempStreak = 0;
+  sorted.forEach(g => {
+    if (g.H > 0) { tempStreak++; longestHitStreak = Math.max(longestHitStreak, tempStreak); }
+    else if (g.AB > 0) tempStreak = 0;
+  });
+
+  // Current on-base streak
+  let currentOBStreak = 0;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if ((sorted[i].H || 0) + (sorted[i].BB || 0) + (sorted[i].HBP || 0) > 0) currentOBStreak++;
+    else if (sorted[i].AB > 0) break;
+  }
+
+  // Multi-hit games
+  const multiHitGames = games.filter(g => g.H >= 2).length;
+
+  const streaks = [
+    { value: currentHitStreak, label: 'HIT STREAK', sub: 'CURRENT', active: currentHitStreak >= 3 },
+    { value: longestHitStreak, label: 'LONGEST STREAK', sub: 'SEASON', active: false },
+    { value: currentOBStreak, label: 'ON-BASE STREAK', sub: 'CURRENT', active: currentOBStreak >= 3 },
+    { value: multiHitGames, label: 'MULTI-HIT GAMES', sub: `OF ${games.length} G`, active: false }
+  ];
+
+  grid.innerHTML = streaks.map(s => `
+    <div class="streak-item ${s.active ? 'active-streak' : ''}">
+      <span class="streak-value">${s.value}</span>
+      <span class="streak-label">${s.label}</span>
+      <span class="streak-sub">${s.sub}</span>
+    </div>
+  `).join('');
+}
+
+// ---- News & Social Links ----
+function renderNewsLinks() {
+  const container = document.getElementById('newsLinks');
+  if (!container || !player.name || player.name === 'SET PLAYER NAME') {
+    if (container) container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);font-family:var(--font-display);font-size:0.7rem;letter-spacing:1px;">SELECT A PLAYER TO SEE LINKS</div>';
+    return;
+  }
+
+  const nameSlug = player.name.toLowerCase().replace(/\s+/g, '-');
+  const nameQuery = encodeURIComponent(player.name);
+  const mlbId = player.mlbId || '';
+
+  const links = [
+    {
+      icon: '&#9918;',
+      title: 'MLB PLAYER PAGE',
+      desc: `Official profile on MLB.com`,
+      url: `https://www.mlb.com/player/${nameSlug}-${mlbId}`
+    },
+    {
+      icon: '&#128270;',
+      title: 'GOOGLE NEWS',
+      desc: `Latest news articles`,
+      url: `https://news.google.com/search?q=${nameQuery}+MLB`
+    },
+    {
+      icon: '&#120143;',
+      title: 'X / TWITTER',
+      desc: `Posts and mentions`,
+      url: `https://x.com/search?q=${nameQuery}+marlins&f=live`
+    },
+    {
+      icon: '&#127909;',
+      title: 'YOUTUBE HIGHLIGHTS',
+      desc: `Video highlights and clips`,
+      url: `https://www.youtube.com/results?search_query=${nameQuery}+marlins+highlights`
+    },
+    {
+      icon: '&#128202;',
+      title: 'BASEBALL REFERENCE',
+      desc: `Career stats and records`,
+      url: `https://www.baseball-reference.com/search/search.fcgi?search=${nameQuery}`
+    }
+  ];
+
+  container.innerHTML = links.map(l => `
+    <a href="${l.url}" target="_blank" rel="noopener" class="news-link">
+      <span class="news-link-icon">${l.icon}</span>
+      <span class="news-link-info">
+        <span class="news-link-title">${l.title}</span>
+        <span class="news-link-desc">${l.desc}</span>
+      </span>
+      <span class="news-link-arrow">&#8599;</span>
+    </a>
+  `).join('');
+}
+
 // ---- Event Listeners ----
 function setupEventListeners() {
+  // Refresh Stats Button
+  document.getElementById('btnRefresh').addEventListener('click', async () => {
+    const btn = document.getElementById('btnRefresh');
+    if (!player.mlbId) return;
+    btn.classList.add('refreshing');
+    btn.textContent = 'LOADING...';
+    await refreshStats();
+    btn.classList.remove('refreshing');
+    btn.innerHTML = '&#8635; REFRESH';
+  });
+
   // Add Game Modal
   document.getElementById('btnAddGame').addEventListener('click', () => {
     document.getElementById('fDate').valueAsDate = new Date();

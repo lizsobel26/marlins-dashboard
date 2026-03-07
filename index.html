@@ -43,7 +43,8 @@
   <section class="player-banner">
     <div class="player-avatar">
       <div class="avatar-ring">
-        <svg viewBox="0 0 120 120" class="avatar-svg">
+        <img id="playerHeadshot" class="player-headshot" src="" alt="Player headshot" style="display:none;" />
+        <svg viewBox="0 0 120 120" class="avatar-svg" id="avatarFallback">
           <circle cx="60" cy="60" r="55" fill="none" stroke="#00A3E0" stroke-width="2" stroke-dasharray="4 4"/>
           <circle cx="60" cy="60" r="48" fill="#0a1628"/>
           <text x="60" y="55" text-anchor="middle" fill="#00A3E0" font-family="Orbitron" font-size="10">PLAYER</text>
@@ -127,7 +128,10 @@
     <div class="card card-game-log">
       <div class="card-header">
         <h3><span class="header-icon">&#128197;</span> GAME LOG</h3>
-        <button class="btn-add-game" id="btnAddGame">+ LOG GAME</button>
+        <div class="game-log-actions">
+          <button class="btn-refresh" id="btnRefresh" title="Refresh stats from MLB">&#8635; REFRESH</button>
+          <button class="btn-add-game" id="btnAddGame">+ LOG GAME</button>
+        </div>
       </div>
       <div class="table-wrapper">
         <table class="game-table">
@@ -135,6 +139,7 @@
             <tr>
               <th>DATE</th>
               <th>OPP</th>
+              <th>W/L</th>
               <th>AB</th>
               <th>H</th>
               <th>2B</th>
@@ -212,6 +217,26 @@
         <h3><span class="header-icon">&#127942;</span> MILESTONE TRACKER</h3>
       </div>
       <div class="milestones-list" id="milestonesList">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Streak Tracker -->
+    <div class="card card-streaks">
+      <div class="card-header">
+        <h3><span class="header-icon">&#128293;</span> STREAK TRACKER</h3>
+      </div>
+      <div class="streaks-grid" id="streaksGrid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- News & Social -->
+    <div class="card card-news">
+      <div class="card-header">
+        <h3><span class="header-icon">&#128240;</span> NEWS & SOCIAL</h3>
+      </div>
+      <div class="news-links" id="newsLinks">
         <!-- Populated by JS -->
       </div>
     </div>
