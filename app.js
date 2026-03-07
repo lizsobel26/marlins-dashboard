@@ -1191,8 +1191,8 @@ function setupEventListeners() {
     renderAll();
   });
 
-  // Player Profile Modal
-  document.getElementById('btnEditProfile').addEventListener('click', () => {
+  // Player Profile Modal — shared open function
+  function openPlayerSwitcher() {
     document.getElementById('pName').value = player.name === 'SET PLAYER NAME' ? '' : player.name;
     document.getElementById('pNumber').value = player.number;
     document.getElementById('pPosition').value = player.position;
@@ -1202,7 +1202,14 @@ function setupEventListeners() {
     document.getElementById('rosterSearch').value = '';
     renderRosterList();
     document.getElementById('playerModalOverlay').classList.add('open');
-  });
+  }
+
+  // FAB button (bottom-right)
+  document.getElementById('btnEditProfile').addEventListener('click', openPlayerSwitcher);
+  // "SWITCH PLAYER" button in banner
+  document.getElementById('btnSwitchPlayer').addEventListener('click', openPlayerSwitcher);
+  // Clickable player name
+  document.getElementById('playerName').addEventListener('click', openPlayerSwitcher);
 
   document.getElementById('playerModalClose').addEventListener('click', () => {
     document.getElementById('playerModalOverlay').classList.remove('open');
