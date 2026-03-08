@@ -15,6 +15,13 @@ const MLB_API = 'https://statsapi.mlb.com/api/v1';
 const MARLINS_ID = 146;
 const CURRENT_YEAR = new Date().getFullYear();
 
+// Helper: parse "YYYY-MM-DD" without timezone shift
+// new Date("2026-03-08") parses as midnight UTC, which shows as 3/7 in US timezones.
+// This forces noon local time so getMonth()/getDate() return the correct day.
+function parseLocalDate(dateStr) {
+  return new Date(dateStr + 'T12:00:00');
+}
+
 // ---- State ----
 let games = JSON.parse(localStorage.getItem(LS_GAMES) || '[]');
 let player = JSON.parse(localStorage.getItem(LS_PLAYER) || 'null') || {
@@ -454,7 +461,7 @@ function renderAvgTrend(range) {
 
   if (avgTrendChart) avgTrendChart.destroy();
 
-  const sorted = [...games].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const sorted = [...games].sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date));
   let displayGames = sorted;
   if (range === 10) displayGames = sorted.slice(-10);
   else if (range === 25) displayGames = sorted.slice(-25);
@@ -474,7 +481,7 @@ function renderAvgTrend(range) {
 
     const startIdx = sorted.length - displayGames.length;
     if (i >= startIdx) {
-      const d = new Date(g.date);
+      const d = parseLocalDate(g.date);
       labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
       avgData.push(totalAB > 0 ? +(totalH / totalAB).toFixed(3) : 0);
       const pa = totalAB + totalBB + totalHBP + totalSF;
@@ -585,7 +592,7 @@ function renderHitDist(s) {
 // ---- Game Log Table ----
 function renderGameLog() {
   const body = document.getElementById('gameLogBody');
-  const sorted = [...games].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sorted = [...games].sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date));
 
   if (sorted.length === 0) {
     body.innerHTML = `<tr><td colspan="13" style="color:var(--text-dim);padding:30px;font-family:var(--font-display);font-size:0.75rem;letter-spacing:2px;">NO GAMES LOGGED YET &mdash; CLICK "LOG GAME" TO START</td></tr>`;
@@ -593,7 +600,7 @@ function renderGameLog() {
   }
 
   // Need running averages (from earliest to latest)
-  const chronological = [...games].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const chronological = [...games].sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date));
   const runningAvg = {};
   let rH = 0, rAB = 0;
   chronological.forEach(g => {
@@ -603,7 +610,7 @@ function renderGameLog() {
   });
 
   body.innerHTML = sorted.map(g => {
-    const d = new Date(g.date);
+    const d = parseLocalDate(g.date);
     const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
     const gameAvg = (g.AB > 0 ? (g.H / g.AB) : 0);
     const cls = gameAvg >= 0.400 ? 'hot-game' : (gameAvg === 0 && g.AB > 0 ? 'cold-game' : '');
@@ -838,9 +845,9 @@ function renderInnings(stats) {
   const ctx = document.getElementById('inningsChart').getContext('2d');
   if (inningsChart) inningsChart.destroy();
 
-  const sorted = [...games].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-15);
+  const sorted = [...games].sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date)).slice(-15);
   const labels = sorted.map(g => {
-    const d = new Date(g.date);
+    const d = parseLocalDate(g.date);
     return `${d.getMonth() + 1}/${d.getDate()}`;
   });
   const ipData = sorted.map(g => g.IP || 0);
@@ -935,7 +942,7 @@ function renderWeekly() {
   if (weeklyChart) weeklyChart.destroy();
 
   // Group games by week
-  const sorted = [...games].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const sorted = [...games].sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date));
   if (sorted.length === 0) {
     weeklyChart = new Chart(ctx, {
       type: 'bar',
@@ -947,7 +954,7 @@ function renderWeekly() {
 
   const weeks = {};
   sorted.forEach(g => {
-    const d = new Date(g.date);
+    const d = parseLocalDate(g.date);
     const weekStart = new Date(d);
     weekStart.setDate(d.getDate() - d.getDay());
     const key = `${weekStart.getMonth() + 1}/${weekStart.getDate()}`;
@@ -1054,7 +1061,7 @@ function renderStreaks() {
   const grid = document.getElementById('streaksGrid');
   if (!grid) return;
 
-  const sorted = [...games].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const sorted = [...games].sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date));
 
   // Current hitting streak
   let currentHitStreak = 0;
