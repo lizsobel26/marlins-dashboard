@@ -7,6 +7,8 @@
 const LS_GAMES = 'marlins_games';
 const LS_PLAYER = 'marlins_player';
 const LS_ROSTER = 'marlins_roster';
+const LS_LAST_UPDATED = 'marlins_last_updated';
+const CACHE_MAX_AGE_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 // ---- MLB API Config ----
 const MLB_API = 'https://statsapi.mlb.com/api/v1';
@@ -271,9 +273,23 @@ async function fetchPlayerStats(mlbId) {
   document.getElementById('seasonYear').textContent = yearLabel;
 }
 
+function isCacheStale() {
+  const lastUpdated = localStorage.getItem(LS_LAST_UPDATED);
+  if (!lastUpdated) return true;
+  const lastTime = Number(lastUpdated);
+  // Stale if older than 4 hours
+  if ((Date.now() - lastTime) > CACHE_MAX_AGE_MS) return true;
+  // Also stale if last update was on a different calendar day (catches new game days)
+  const lastDate = new Date(lastTime).toDateString();
+  const today = new Date().toDateString();
+  if (lastDate !== today) return true;
+  return false;
+}
+
 async function refreshStats() {
   if (!player.mlbId) return;
   await fetchPlayerStats(player.mlbId);
+  localStorage.setItem(LS_LAST_UPDATED, String(Date.now()));
   renderAll();
 }
 
@@ -285,6 +301,11 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   initFacts();
   fetchRoster();
+
+  // Always fetch fresh stats on page load
+  if (player.mlbId) {
+    refreshStats();
+  }
 
   // Show player setup if first time
   if (player.name === 'SET PLAYER NAME') {
