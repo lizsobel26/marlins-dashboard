@@ -1071,6 +1071,95 @@ body {
   font-size: 1rem;
 }
 
+/* ---- Upcoming Schedule ---- */
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.schedule-game {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.schedule-game:hover {
+  border-color: var(--border-bright);
+  background: rgba(0,163,224,0.06);
+}
+.schedule-game.schedule-today {
+  border-color: var(--blue);
+  background: rgba(0,163,224,0.1);
+  box-shadow: 0 0 12px var(--blue-glow);
+}
+.schedule-date {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  width: 70px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.schedule-today .schedule-date {
+  color: var(--blue);
+}
+.schedule-matchup {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.schedule-vs {
+  color: var(--text-dim);
+  font-weight: 400;
+  margin: 0 4px;
+}
+.schedule-home-away {
+  font-family: var(--font-display);
+  font-size: 0.5rem;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.schedule-home {
+  background: rgba(0,163,224,0.15);
+  color: var(--blue);
+}
+.schedule-away {
+  background: rgba(239,51,64,0.12);
+  color: var(--red);
+}
+.schedule-time {
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  width: 65px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.schedule-status-live {
+  color: var(--red);
+  font-weight: 600;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.schedule-type {
+  font-family: var(--font-display);
+  font-size: 0.45rem;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
 /* ---- Footer ---- */
 .footer {
   text-align: center;
@@ -1106,6 +1195,7 @@ body {
   .card-milestones,
   .card-weekly,
   .card-streaks,
+  .card-schedule,
   .card-news { grid-column: span 1; }
 }
 

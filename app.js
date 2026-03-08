@@ -302,10 +302,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initFacts();
   fetchRoster();
 
-  // Always fetch fresh stats on page load
+  // Always fetch fresh stats and schedule on page load
   if (player.mlbId) {
     refreshStats();
   }
+  fetchSchedule();
 
   // Show player setup if first time
   if (player.name === 'SET PLAYER NAME') {
@@ -1093,6 +1094,107 @@ function renderStreaks() {
       <span class="streak-sub">${s.sub}</span>
     </div>
   `).join('');
+}
+
+// ---- Upcoming Schedule ----
+async function fetchSchedule() {
+  const container = document.getElementById('scheduleList');
+  if (!container) return;
+
+  container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);font-family:var(--font-display);font-size:0.7rem;letter-spacing:1px;">LOADING SCHEDULE...</div>';
+
+  try {
+    const today = new Date();
+    const startDate = today.toISOString().split('T')[0];
+    // Look ahead 30 days to cover spring training + regular season start
+    const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const todayStr = startDate;
+
+    const res = await fetch(`${MLB_API}/schedule?teamId=${MARLINS_ID}&season=${CURRENT_YEAR}&startDate=${startDate}&endDate=${endDate}&sportId=1&gameType=S,R,E`);
+    const data = await res.json();
+
+    const games = [];
+    for (const d of (data.dates || [])) {
+      for (const g of (d.games || [])) {
+        const home = g.teams.home.team;
+        const away = g.teams.away.team;
+        const isHome = home.id === MARLINS_ID;
+        const opponent = isHome ? away : home;
+        const oppAbbr = teamAbbrev(opponent.name);
+        const gameDate = new Date(g.gameDate);
+        const status = g.status ? g.status.detailedState : '';
+        const gameType = g.gameType; // S=Spring, R=Regular, E=Exhibition
+
+        games.push({
+          date: d.date,
+          gameDate,
+          oppAbbr,
+          oppName: opponent.name,
+          isHome,
+          status,
+          gameType
+        });
+      }
+    }
+
+    // Take next 8 games
+    const upcoming = games.slice(0, 8);
+
+    if (upcoming.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);font-family:var(--font-display);font-size:0.7rem;letter-spacing:1px;">NO UPCOMING GAMES</div>';
+      return;
+    }
+
+    // Update badge with type label
+    const hasRegular = upcoming.some(g => g.gameType === 'R');
+    const hasSpring = upcoming.some(g => g.gameType === 'S');
+    const label = document.getElementById('scheduleLabel');
+    if (label) {
+      if (hasRegular && hasSpring) label.textContent = 'SPRING + REG';
+      else if (hasRegular) label.textContent = 'REGULAR';
+      else if (hasSpring) label.textContent = 'SPRING';
+    }
+
+    container.innerHTML = upcoming.map(g => {
+      const d = new Date(g.date + 'T12:00:00');
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+      const monthDay = `${d.getMonth() + 1}/${d.getDate()}`;
+
+      const isToday = g.date === todayStr;
+      const isLive = g.status === 'In Progress' || g.status === 'Live';
+
+      // Format time in local timezone
+      let timeStr = '';
+      if (isLive) {
+        timeStr = '<span class="schedule-status-live">LIVE</span>';
+      } else if (g.status === 'Final') {
+        timeStr = 'FINAL';
+      } else {
+        const h = g.gameDate.getHours();
+        const m = g.gameDate.getMinutes();
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const hour = h % 12 || 12;
+        timeStr = `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+      }
+
+      const typeLabel = g.gameType === 'S' ? 'ST' : g.gameType === 'R' ? 'REG' : 'EX';
+
+      return `
+        <div class="schedule-game ${isToday ? 'schedule-today' : ''}">
+          <div class="schedule-date">${dayName}<br>${monthDay}</div>
+          <div class="schedule-matchup">
+            ${g.isHome ? g.oppAbbr + '<span class="schedule-vs"> @ </span>MIA' : 'MIA<span class="schedule-vs"> @ </span>' + g.oppAbbr}
+          </div>
+          <span class="schedule-home-away ${g.isHome ? 'schedule-home' : 'schedule-away'}">${g.isHome ? 'HOME' : 'AWAY'}</span>
+          <span class="schedule-type">${typeLabel}</span>
+          <div class="schedule-time">${timeStr}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Error fetching schedule:', err);
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);font-family:var(--font-display);font-size:0.7rem;letter-spacing:1px;">SCHEDULE UNAVAILABLE</div>';
+  }
 }
 
 // ---- News & Social Links ----
